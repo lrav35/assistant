@@ -8,7 +8,7 @@ from transformers import PreTrainedTokenizer
 
 
 def load_model():
-    model, tokenizer = load("stabilityai/stablelm-2-zephyr-1_6b")
+    model, tokenizer = load("stabilityai/stablelm-2-zephyr-1_6b", tokenizer_config={"trust_remote_code": True})
     return model, tokenizer
 
 # TODO: move max_tokens to a config file
@@ -17,21 +17,27 @@ def generate(model: nn.Module, tokenizer: PreTrainedTokenizer, prompt: str, max_
     # encode
     prompt = mx.array(tokenizer.encode(prompt))
 
-    # TODO: add back toks/s if i want
-    # tic = time.perf_counter()
+    tic = time.perf_counter()
     tokens = []
+    token_string = ""
+    cur = 0
     REPLACEMENT_CHAR = "\ufffd"
 
     # send to model
     for (token, prob), n in zip(generate_step(prompt, model, temp), range(max_tokens)):
         if token == tokenizer.eos_token_id:
             break
-        # if n == 0:
-        #     prompt_time = time.perf_counter() - tic
-        #     tic = time.perf_counter()
         tokens.append(token.item())
-
-    token_string = tokenizer.decode(tokens).replace(REPLACEMENT_CHAR, "")
+        s = tokenizer.decode(tokens)
+        if REPLACEMENT_CHAR not in tokens:
+            t = s[cur:]
+            token_string += t
+            print(colored(t, "cyan"), end="", flush=True)
+            cur = len(s)
+    print("\n")
+    gen_time = time.perf_counter()
+    gen_tps = (len(tokens) - 1) / gen_time
+    print(f"Generation: {gen_tps:.3f} tokens-per-sec")
 
     return token_string
 
@@ -60,7 +66,7 @@ def generate_step(prompt: mx.array, model: nn.Module, temp: float = 0.0):
 
 def colored(st, color:Optional[str], background=False): return f"\u001b[{10*background+60*(color.upper() == color)+30+['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'].index(color.lower())}m{st}\u001b[0m" if color is not None else st
 
-def output(outputted, tokens, color):
+def output(outputted, tokens, tokenizer, color):
     # this is where we will decode tokens from the model and build the context for the next prompt
 
 # <|user|>
@@ -68,28 +74,36 @@ def output(outputted, tokens, color):
 # <|assistant|>
 # The number you are referring to is 1.618033988749895. This is the famous value known as the golden ratio<|endoftext|>
 
-    cur = tokens
-    context = outputted + cur
-    sys.stdout.write("current input: " + colored(cur, color)+"\n")
-    sys.stdout.write("all context: " + colored(context, color)+"\n")
+    cur = "<|user|>\n" + tokens + "<|endoftext|>\n"
+    full_context = outputted + cur
+    sys.stdout.write("current input: \n" + colored(cur, color)+"\n")
+    sys.stdout.write("all context: \n" + colored(full_context, color)+"\n")
     sys.stdout.flush()
     outputted += cur
     return outputted
 
 def run():
+    print("Beginning to load model...\n\n#######################################")
+
     model, tokenizer = load_model()
 
     print("what would you like to know?")
 
-    toks = ""
-    outputted = output("", toks, "green")
+    # toks = ""
+    # outputted = output("", toks, tokenizer, "green")
+    outputted = ""
 
     while 1:
         toks = input(">>> ")
         while 1:
-            outputted = output(outputted, toks, "blue")
-            response = generate(model, tokenizer, toks, 100)
-            print(response)
+            # outputted = output(outputted, toks, tokenizer, "blue")
+            cur = "<|user|>\n" + toks + "<|endoftext|>\n"
+            outputted += cur
+            sys.stdout.write("current input: \n" + colored(cur, "blue")+"\n")
+            sys.stdout.write("all context: \n" + colored(outputted, "red")+"\n")
+            sys.stdout.flush()
+            response = generate(model, tokenizer, outputted, 100)
+            outputted += "<|assistant|>\n" + response + "<|endoftext|>\n" 
             break
     print("")
 
