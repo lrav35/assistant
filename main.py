@@ -6,6 +6,11 @@ import mlx.nn as nn
 import time
 from transformers import PreTrainedTokenizer
 
+USER = 'user'
+ASSISTANT = 'assistant'
+USER_PREFIX = '<|user|>'
+ASSISTANT_PREFIX = '<|assistant|>'
+EOS = '<|endoftext|>'
 
 def load_model():
     model, tokenizer = load("stabilityai/stablelm-2-zephyr-1_6b", tokenizer_config={"trust_remote_code": True})
@@ -23,6 +28,8 @@ def generate(model: nn.Module, tokenizer: PreTrainedTokenizer, prompt: str, max_
     cur = 0
     REPLACEMENT_CHAR = "\ufffd"
 
+    print("\n")
+
     # send to model
     for (token, prob), n in zip(generate_step(prompt, model, temp), range(max_tokens)):
         if token == tokenizer.eos_token_id:
@@ -32,12 +39,13 @@ def generate(model: nn.Module, tokenizer: PreTrainedTokenizer, prompt: str, max_
         if REPLACEMENT_CHAR not in tokens:
             t = s[cur:]
             token_string += t
-            print(colored(t, "cyan"), end="", flush=True)
+            print(colored(t, "green"), end="", flush=True)
             cur = len(s)
     print("\n")
-    gen_time = time.perf_counter()
+    gen_time = time.perf_counter() - tic
     gen_tps = (len(tokens) - 1) / gen_time
-    print(f"Generation: {gen_tps:.3f} tokens-per-sec")
+    print(f"token count: {len(tokens) + len(prompt)}")
+    print(f"tokens-per-sec: {gen_tps:.3f}\n")
 
     return token_string
 
@@ -82,28 +90,28 @@ def output(outputted, tokens, tokenizer, color):
     outputted += cur
     return outputted
 
+def format_tokens(tokens, being):
+    prefix = USER_PREFIX if being == USER else ASSISTANT_PREFIX
+    token_string = prefix + "\n" + tokens + EOS
+    return token_string
+
 def run():
-    print("Beginning to load model...\n\n#######################################")
+    print("\n\nBeginning to load model...\n\n#############################################################################\n")
 
     model, tokenizer = load_model()
 
-    print("what would you like to know?")
+    print("\n#############################################################################\n")
 
-    # toks = ""
-    # outputted = output("", toks, tokenizer, "green")
+    print("what would you like to know?\n")
+
     outputted = ""
 
     while 1:
         toks = input(">>> ")
         while 1:
-            # outputted = output(outputted, toks, tokenizer, "blue")
-            cur = "<|user|>\n" + toks + "<|endoftext|>\n"
+            cur = format_tokens(toks, USER)
             outputted += cur
-            sys.stdout.write("current input: \n" + colored(cur, "blue")+"\n")
-            sys.stdout.write("all context: \n" + colored(outputted, "red")+"\n")
-            sys.stdout.flush()
-            response = generate(model, tokenizer, outputted, 100)
-            outputted += "<|assistant|>\n" + response + "<|endoftext|>\n" 
+            outputted = format_tokens(generate(model, tokenizer, outputted, 1000), ASSISTANT)
             break
     print("")
 
