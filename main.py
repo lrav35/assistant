@@ -74,6 +74,13 @@ def generate_step(prompt: mx.array, model: nn.Module, temp: float = 0.0):
 
 def colored(st, color:Optional[str], background=False): return f"\u001b[{10*background+60*(color.upper() == color)+30+['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'].index(color.lower())}m{st}\u001b[0m" if color is not None else st
 
+def print_file_content(filename):
+    print("\n")
+    with open(filename, 'r') as file:
+        for line in file:
+            print(line, end='')
+            time.sleep(0.02)
+
 def output(outputted, tokens, tokenizer, color):
     # this is where we will decode tokens from the model and build the context for the next prompt
 
@@ -96,6 +103,9 @@ def format_tokens(tokens, being):
     return token_string
 
 def run():
+
+    print_file_content("shoggoth.txt")
+
     print("\n\nBeginning to load model...\n\n#############################################################################\n")
 
     model, tokenizer = load_model()
