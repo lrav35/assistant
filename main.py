@@ -1,4 +1,6 @@
-import sys
+import shutil
+import os
+from dotenv import load_dotenv
 from typing import Optional, Tuple
 from mlx_lm import load
 import mlx.core as mx
@@ -8,12 +10,9 @@ from transformers import PreTrainedTokenizer
 
 USER = 'user'
 ASSISTANT = 'assistant'
-USER_PREFIX = '<|user|>'
-ASSISTANT_PREFIX = '<|assistant|>'
-EOS = '<|endoftext|>'
 
-def load_model():
-    model, tokenizer = load("stabilityai/stablelm-2-zephyr-1_6b", tokenizer_config={"trust_remote_code": True})
+def load_model(model_name: str):
+    model, tokenizer = load(model_name, tokenizer_config={"trust_remote_code": True})
     return model, tokenizer
 
 # TODO: move max_tokens to a config file
@@ -30,7 +29,6 @@ def generate(model: nn.Module, tokenizer: PreTrainedTokenizer, prompt: str, max_
 
     print("\n")
 
-    # send to model
     for (token, prob), n in zip(generate_step(prompt, model, temp), range(max_tokens)):
         if token == tokenizer.eos_token_id:
             break
@@ -39,7 +37,7 @@ def generate(model: nn.Module, tokenizer: PreTrainedTokenizer, prompt: str, max_
         if REPLACEMENT_CHAR not in tokens:
             t = s[cur:]
             token_string += t
-            print(colored(t, "green"), end="", flush=True)
+            print(colored(t, os.getenv("COLOR")), end="", flush=True)
             cur = len(s)
     print("\n")
     gen_time = time.perf_counter() - tic
@@ -51,7 +49,6 @@ def generate(model: nn.Module, tokenizer: PreTrainedTokenizer, prompt: str, max_
 
 def generate_step(prompt: mx.array, model: nn.Module, temp: float = 0.0):
     """Code largely taken from mlx-lm"""
- 
     def sample(logits: mx.array) -> Tuple[mx.array, float]:
         softmax_logits = mx.softmax(logits)
 
@@ -72,7 +69,9 @@ def generate_step(prompt: mx.array, model: nn.Module, temp: float = 0.0):
         yield y, prob
 
 
-def colored(st, color:Optional[str], background=False): return f"\u001b[{10*background+60*(color.upper() == color)+30+['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'].index(color.lower())}m{st}\u001b[0m" if color is not None else st
+def colored(st, color: Optional[str], background=False): return f"\u001b[{10*background+60*(color.upper() == color)+30+['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'].index(color.lower())}m{st}\u001b[0m" if color is not None else st
+
+def spacers(): return "\n" + "#" * shutil.get_terminal_size().columns + "\n" 
 
 def print_file_content(filename):
     print("\n")
@@ -81,49 +80,36 @@ def print_file_content(filename):
             print(line, end='')
             time.sleep(0.02)
 
-def output(outputted, tokens, tokenizer, color):
-    # this is where we will decode tokens from the model and build the context for the next prompt
-
-# <|user|>
-# Which famous math number begins with 1.6 ...?<|endoftext|>
-# <|assistant|>
-# The number you are referring to is 1.618033988749895. This is the famous value known as the golden ratio<|endoftext|>
-
-    cur = "<|user|>\n" + tokens + "<|endoftext|>\n"
-    full_context = outputted + cur
-    sys.stdout.write("current input: \n" + colored(cur, color)+"\n")
-    sys.stdout.write("all context: \n" + colored(full_context, color)+"\n")
-    sys.stdout.flush()
-    outputted += cur
-    return outputted
-
 def format_tokens(tokens, being):
-    prefix = USER_PREFIX if being == USER else ASSISTANT_PREFIX
-    token_string = prefix + "\n" + tokens + EOS
+    prefix = os.getenv('USER_PREFIX') if being == USER else os.getenv('ASSISTANT_PREFIX')
+    token_string = prefix + "\n" + tokens + os.getenv('EOS')
     return token_string
 
 def run():
-
+    load_dotenv()
     print_file_content("shoggoth.txt")
 
-    print("\n\nBeginning to load model...\n\n#############################################################################\n")
+    print("\n\nBeginning to load model...\n" + spacers())
 
-    model, tokenizer = load_model()
+    model, tokenizer = load_model(os.getenv("MODEL"))
 
-    print("\n#############################################################################\n")
+    print(spacers())
 
-    print("what would you like to know?\n")
+    print("what would you like to know? ('quit' + <Enter> to exit)\n")
 
     outputted = ""
 
     while 1:
         toks = input(">>> ")
+        if toks == "quit": 
+            print(colored("\nprogram ending... (╥ꞈ╥)", "red"))
+            break
         while 1:
             cur = format_tokens(toks, USER)
             outputted += cur
             outputted = format_tokens(generate(model, tokenizer, outputted, 1000), ASSISTANT)
             break
-    print("")
+    print("\n")
 
 if __name__ == "__main__":
     run()
