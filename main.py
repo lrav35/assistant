@@ -73,14 +73,14 @@ def colored(st, color: Optional[str], background=False): return f"\u001b[{10*bac
 
 def spacers(): return "\n" + "#" * shutil.get_terminal_size().columns + "\n" 
 
-def print_file_content(filename):
+def print_file_content(filename: str):
     print("\n")
     with open(filename, 'r') as file:
         for line in file:
             print(line, end='')
             time.sleep(0.02)
 
-def format_tokens(tokens, being):
+def format_tokens(tokens: str, being: str):
     prefix = os.getenv('USER_PREFIX') if being == USER else os.getenv('ASSISTANT_PREFIX')
     token_string = prefix + "\n" + tokens + os.getenv('EOS')
     return token_string
