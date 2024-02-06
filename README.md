@@ -29,6 +29,8 @@ This project was built with python 3.9 and has been tested on my Macbook Pro M2 
     python main.py
     ```
 
+Configuration can be found int the [.env](.env) file. These are environment variables that you can use to changes the model and other small aspects about the application
+
 <!-- LICENSE -->
 ## License
 
