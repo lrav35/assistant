@@ -2,15 +2,14 @@
 ## Assistant
 
 
-
-
 I want the ability to interface with an omniscient being directly on my laptop. I do not want to be reliant on some company's black box of an API. If I have the weights, I don't want to pay to use A100s and short of a GPU cluster in my basement, this is the next best thing. The introduction of the [MLX](https://github.com/ml-explore/mlx) framework has given engineers the ability to run models locally on their Apple silicon-based machines, similarly to the [llama.cpp](https://github.com/ggerganov/llama.cpp) ecosystem with GGUF. This is a *very* simple python application that will allow me to do this.
 
 
-[demo](https://example.com)
+![demo](https://github.com/lrav35/assistant/assets/49992169/0e33505e-0a15-404f-b794-2e10f084ccda)
 
 <!-- GETTING STARTED -->
 ## Getting Started
+
 
 This project was built with python 3.9 and has been tested on my Macbook Pro M2 w/ 16GB of unified RAM.
 
